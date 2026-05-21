@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YGPTCreditBar</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="popover-body">
+    <main id="root" class="popover">
+      <header class="popover__header">
+        <button class="org-switcher" id="org-switcher" type="button">
+          <span class="org-switcher__name" id="org-name">Not connected</span>
+          <svg class="org-switcher__chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+            <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="popover__plan" id="plan-name">Connect your YourGPT account</span>
+        </button>
+        <div class="popover__plan-meta">
+          <span class="popover__updated" id="updated-label"></span>
+        </div>
+
+        <div class="org-menu hidden" id="org-menu" role="menu">
+          <div class="org-menu__list" id="org-menu-list">
+            <div class="org-menu__loading">Loading organizations…</div>
+          </div>
+        </div>
+      </header>
+
+      <div class="empty hidden" id="empty-state">
+        <div class="empty__icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </div>
+        <h2 class="empty__title">Welcome to YGPTCreditBar</h2>
+        <p class="empty__desc">Paste your YourGPT API token to start monitoring credits, voice usage, and team caps right from the menu bar.</p>
+        <button class="btn btn--primary" id="empty-connect">Connect account</button>
+      </div>
+      <section class="popover__buckets" id="buckets"></section>
+
+      <section class="popover__cost hidden" id="cost-section">
+        <h3 class="popover__section-title">Subscription</h3>
+        <div class="popover__cost-row">
+          <span>Plan</span>
+          <span id="cost-plan">—</span>
+        </div>
+        <div class="popover__cost-row">
+          <span>Status</span>
+          <span id="cost-status">—</span>
+        </div>
+        <div class="popover__cost-row popover__cost-row--muted">
+          <span id="cost-renewal-label">Next payment</span>
+          <span id="cost-renewal">—</span>
+        </div>
+      </section>
+
+      <footer class="popover__actions">
+        <button class="link-row" id="action-open-dashboard">
+          <span class="link-row__icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="7" height="9" x="3" y="3" rx="1"/>
+              <rect width="7" height="5" x="14" y="3" rx="1"/>
+              <rect width="7" height="9" x="14" y="12" rx="1"/>
+              <rect width="7" height="5" x="3" y="16" rx="1"/>
+            </svg>
+          </span>
+          <span>Open Dashboard</span>
+        </button>
+        <button class="link-row" id="action-manage-billing">
+          <span class="link-row__icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="20" height="14" x="2" y="5" rx="2"/>
+              <line x1="2" x2="22" y1="10" y2="10"/>
+            </svg>
+          </span>
+          <span>Manage Billing</span>
+        </button>
+        <div class="popover__divider"></div>
+        <button class="link-row" id="action-refresh">
+          <span class="link-row__icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M8 16H3v5"/>
+            </svg>
+          </span>
+          <span>Refresh</span>
+          <kbd>⌘R</kbd>
+        </button>
+        <button class="link-row" id="action-settings">
+          <span class="link-row__icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+          <span>Settings…</span>
+          <kbd>⌘,</kbd>
+        </button>
+        <button class="link-row link-row--quit" id="action-quit">
+          <span class="link-row__icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" x2="9" y1="12" y2="12"/>
+            </svg>
+          </span>
+          <span>Quit</span>
+          <kbd>⌘Q</kbd>
+        </button>
+      </footer>
+    </main>
+    <script src="popover.js"></script>
+  </body>
+</html>

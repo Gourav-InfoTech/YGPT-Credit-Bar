@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YGPTCreditBar Settings</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="settings-body">
+    <main class="settings">
+      <header class="settings__header">
+        <h1 class="settings__title">YGPTCreditBar</h1>
+        <p class="settings__subtitle">Monitor your YourGPT usage from the menu bar.</p>
+      </header>
+
+      <section class="settings__section">
+        <label class="settings__label" for="pat-input">YourGPT Token</label>
+        <input
+          id="pat-input"
+          type="password"
+          class="settings__input"
+          placeholder="api-v1-…  or  session JWT"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <p class="settings__hint">
+          Paste an API token (starts with <code>api-v1-</code>) or your dashboard session JWT.
+          <a href="#" id="how-to-link">How to get a token →</a>
+        </p>
+      </section>
+
+      <section class="settings__section">
+        <label class="settings__label" for="org-select">Organization</label>
+        <select id="org-select" class="settings__input" disabled>
+          <option value="">Paste token to load organizations…</option>
+        </select>
+        <p class="settings__hint" id="org-status"></p>
+      </section>
+
+      <section class="settings__section">
+        <label class="settings__label" for="interval-input">Refresh interval (seconds)</label>
+        <input
+          id="interval-input"
+          type="number"
+          class="settings__input"
+          min="15"
+          max="300"
+          step="5"
+          value="30"
+        />
+      </section>
+
+      <footer class="settings__footer">
+        <button id="remove-btn" class="btn btn--ghost hidden">Remove account</button>
+        <div class="settings__footer-right">
+          <button id="cancel-btn" class="btn btn--secondary">Cancel</button>
+          <button id="save-btn" class="btn btn--primary" disabled>Save</button>
+        </div>
+      </footer>
+
+      <div class="settings__toast hidden" id="toast"></div>
+    </main>
+    <script src="settings.js"></script>
+  </body>
+</html>

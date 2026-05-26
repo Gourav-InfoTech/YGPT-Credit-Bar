@@ -10,6 +10,22 @@ use tauri_plugin_notification::NotificationExt;
 /// Notification thresholds — fire once per bucket per threshold crossing per session.
 const THRESHOLDS: &[f64] = &[80.0, 95.0, 100.0];
 
+/// Whitelist of notification `type` values we surface in the menu bar. This app is for
+/// billing/credit/plan awareness — project-scoped events (CHAT_ASSIGNED, ESCALATED_TO_HUMAN,
+/// etc.) belong in the dashboard, not here.
+const BILLING_NOTIFICATION_TYPES: &[&str] = &[
+    "CREDIT_LIMIT_50_PERCENT_REACHED",
+    "CREDIT_LIMIT_75_PERCENT_REACHED",
+    "CREDIT_EXHAUSTED",
+    "PAST_DUE_SUBSCRIPTION",
+    "VOICE_CREDIT_LIMIT_75_PERCENT_REACHED",
+    "VOICE_CREDIT_EXHAUSTED",
+];
+
+fn is_billing_type(t: &str) -> bool {
+    BILLING_NOTIFICATION_TYPES.contains(&t)
+}
+
 pub fn spawn(app: AppHandle, api: ApiClient) {
     tauri::async_runtime::spawn(async move {
         // First fetch immediately, then settle into the configured interval.
@@ -89,6 +105,75 @@ pub async fn fetch_once(app: &AppHandle, api: &ApiClient) {
             *state.last_error.write().unwrap() = Some(msg);
             let _ = app.emit("snapshot-updated", ());
         }
+    }
+
+    // Notifications run on the same cycle. Independent of plan-detail success/failure so a
+    // notif-API hiccup doesn't poison quota rendering and vice versa.
+    fetch_notifications_once(app, api, &token, &state).await;
+}
+
+/// Pulls the latest notification feed and fires a native macOS banner for any new
+/// **billing/credit/plan** notification we haven't already announced this session.
+///
+/// No UI is involved — this is fire-and-forget. We don't store the list in state and
+/// there's no in-app feed. The user sees these alerts the same way they see any other
+/// macOS notification (Notification Center, banner, etc.).
+async fn fetch_notifications_once(
+    app: &AppHandle,
+    api: &ApiClient,
+    token: &str,
+    state: &Arc<AppState>,
+) {
+    let list = match api.get_notifications(token).await {
+        Ok(l) => l,
+        Err(e) => {
+            log::warn!("notification fetch failed: {e:#}");
+            return;
+        }
+    };
+
+    // Filter to billing/credit/plan types AND items we haven't already announced.
+    let new_items: Vec<_> = list
+        .into_iter()
+        .filter(|n| {
+            n.notification_data
+                .as_ref()
+                .and_then(|d| d.kind.as_deref())
+                .map(is_billing_type)
+                .unwrap_or(false)
+        })
+        .filter(|n| n.is_unread())
+        .filter(|n| {
+            !state
+                .announced_notification_ids
+                .read()
+                .unwrap()
+                .contains(&n.id)
+        })
+        .collect();
+
+    for n in &new_items {
+        let title = n.title.clone().unwrap_or_else(|| "YourGPT".to_string());
+        // Keep banner body short — macOS truncates aggressively anyway.
+        let mut body = n.body.clone();
+        if body.len() > 200 {
+            body.truncate(200);
+            body.push('…');
+        }
+        if let Err(e) = app
+            .notification()
+            .builder()
+            .title(&title)
+            .body(&body)
+            .show()
+        {
+            log::warn!("native notification show failed: {e}");
+        }
+        state
+            .announced_notification_ids
+            .write()
+            .unwrap()
+            .insert(n.id);
     }
 }
 

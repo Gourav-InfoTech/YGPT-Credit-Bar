@@ -152,6 +152,7 @@ pub fn clear_account(
     *state.snapshot.write().unwrap() = None;
     *state.last_error.write().unwrap() = None;
     *state.last_notified_pct.write().unwrap() = 0.0;
+    state.announced_notification_ids.write().unwrap().clear();
 
     // Reset the tray icon to the idle (gray) state and clear the percentage title.
     // Pass Some("") not None — tray-icon's macOS impl skips None as a no-op.
@@ -196,6 +197,50 @@ pub fn open_settings_window(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let _ = win.show();
     let _ = win.set_focus();
+    Ok(())
+}
+
+/// Fires a sample native macOS banner. Explicitly requests permission first so the macOS
+/// "Allow YGPTCreditBar to send notifications?" prompt actually surfaces if it hasn't yet.
+#[tauri::command]
+pub async fn test_notification(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_notification::{NotificationExt, PermissionState};
+
+    // 1. Check current permission state
+    let state = app
+        .notification()
+        .permission_state()
+        .map_err(|e| format!("permission_state: {e}"))?;
+    log::info!("notification permission state: {:?}", state);
+
+    // 2. Request permission if not yet granted (this is what surfaces the macOS prompt)
+    let state = if state != PermissionState::Granted {
+        log::info!("requesting notification permission…");
+        let s = app
+            .notification()
+            .request_permission()
+            .map_err(|e| format!("request_permission: {e}"))?;
+        log::info!("permission after request: {:?}", s);
+        s
+    } else {
+        state
+    };
+
+    if state != PermissionState::Granted {
+        return Err(format!(
+            "notification permission not granted (state={state:?}). Check System Settings → Notifications → YGPTCreditBar."
+        ));
+    }
+
+    // 3. Fire the banner
+    log::info!("firing test banner…");
+    app.notification()
+        .builder()
+        .title("YGPTCreditBar")
+        .body("Test banner — notifications are working.")
+        .show()
+        .map_err(|e| format!("show: {e}"))?;
+    log::info!("test banner fired");
     Ok(())
 }
 

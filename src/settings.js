@@ -35,7 +35,7 @@ async function loadCurrentSettings() {
   try {
     const settings = await invoke("get_settings");
     if (settings?.has_token) {
-      patInput.placeholder = "Token saved — paste a new one to replace";
+      patInput.placeholder = "Token saved. Paste a new one to replace.";
       removeBtn.classList.remove("hidden");
     }
     if (settings?.interval_secs) {
@@ -147,7 +147,7 @@ removeBtn.addEventListener("click", async () => {
 
 howToLink.addEventListener("click", (e) => {
   e.preventDefault();
-  invoke("open_external", { url: "https://chatbot.yourgpt.ai/settings/api-tokens" });
+  invoke("open_external", { url: "https://chatbot.yourgpt.ai/dashboard" });
 });
 
 document.addEventListener("keydown", (e) => {

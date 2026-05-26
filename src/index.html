@@ -10,15 +10,22 @@
     <main id="root" class="popover">
       <header class="popover__header">
         <button class="org-switcher" id="org-switcher" type="button">
-          <span class="org-switcher__name" id="org-name">Not connected</span>
-          <svg class="org-switcher__chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-            <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <span class="org-switcher__logo" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
+              <rect x="3" y="4" width="6.4" height="16" rx="3.2"/>
+              <rect x="10.6" y="10" width="6.4" height="10" rx="3.0"/>
+              <circle cx="17.6" cy="4" r="2"/>
+            </svg>
+          </span>
+          <span class="org-switcher__text">
+            <span class="org-switcher__name" id="org-name">Not connected</span>
+            <span class="org-switcher__plan" id="plan-name">Connect your YourGPT account</span>
+          </span>
+          <span class="org-switcher__updated" id="updated-label"></span>
+          <svg class="org-switcher__chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M3 5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="popover__plan" id="plan-name">Connect your YourGPT account</span>
         </button>
-        <div class="popover__plan-meta">
-          <span class="popover__updated" id="updated-label"></span>
-        </div>
 
         <div class="org-menu hidden" id="org-menu" role="menu">
           <div class="org-menu__list" id="org-menu-list">
@@ -28,14 +35,66 @@
       </header>
 
       <div class="empty hidden" id="empty-state">
-        <div class="empty__icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
+        <div class="empty__hero">
+          <div class="empty__icon">
+            <svg width="30" height="30" viewBox="0 0 22 22" aria-hidden="true">
+              <defs>
+                <linearGradient id="emptyIconGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f5f5f7"/>
+                  <stop offset="0.5" stop-color="#a1a1a6"/>
+                  <stop offset="1" stop-color="#5a5a5d"/>
+                </linearGradient>
+              </defs>
+              <rect x="3" y="4" width="6.4" height="16" rx="3.2" fill="url(#emptyIconGrad)"/>
+              <rect x="10.6" y="10" width="6.4" height="10" rx="3.0" fill="url(#emptyIconGrad)"/>
+              <circle cx="17.6" cy="4" r="2" fill="url(#emptyIconGrad)"/>
+            </svg>
+          </div>
+          <h2 class="empty__title">Welcome to YGPTCreditBar</h2>
+          <p class="empty__desc">Live YourGPT usage right in your menu bar. See credits, voice, and team caps at a glance.</p>
         </div>
-        <h2 class="empty__title">Welcome to YGPTCreditBar</h2>
-        <p class="empty__desc">Paste your YourGPT API token to start monitoring credits, voice usage, and team caps right from the menu bar.</p>
-        <button class="btn btn--primary" id="empty-connect">Connect account</button>
+
+        <ul class="empty__features" id="empty-features">
+          <li class="empty__feature">
+            <span class="empty__feature-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+            </span>
+            <span class="empty__feature-text">Tray icon shifts color as you approach limits</span>
+          </li>
+          <li class="empty__feature">
+            <span class="empty__feature-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+            </span>
+            <span class="empty__feature-text">All 8 quota buckets in one place</span>
+          </li>
+          <li class="empty__feature">
+            <span class="empty__feature-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+              </svg>
+            </span>
+            <span class="empty__feature-text">Native alerts at 80%, 95%, 100%</span>
+          </li>
+        </ul>
+
+        <div class="empty__actions">
+          <button class="btn btn--primary" id="empty-connect">Connect account</button>
+          <button class="empty__link" id="empty-token-help">
+            <span>Need a token?</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 17 17 7"/>
+              <path d="M7 7h10v10"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <section class="popover__buckets" id="buckets"></section>
 

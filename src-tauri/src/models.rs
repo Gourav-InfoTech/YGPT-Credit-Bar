@@ -98,6 +98,80 @@ pub struct Org {
     pub name: String,
 }
 
+// ============================================================================
+// Notifications (mirroring chatbot.yourgpt.ai's notification feed)
+// ============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NotificationPriority {
+    Urgent,
+    High,
+    Medium,
+    Low,
+    Normal,
+    // Forward-compat: unknown server-side priorities deserialize to this variant
+    // rather than failing the whole list.
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotificationData {
+    // The dashboard has 18 known type values; we keep this as a free-form string
+    // so the server can add new ones without breaking us — we never branch on it
+    // in v1.
+    #[serde(rename = "type", default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub priority: Option<NotificationPriority>,
+    #[serde(default)]
+    pub channels: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotificationRecipient {
+    pub id: i64,
+    // Server emits "0" / "1" / null. We keep the raw shape.
+    #[serde(default)]
+    pub seen: Option<String>,
+    #[serde(default)]
+    pub dismissed_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Notification {
+    pub id: i64,
+    #[serde(default)]
+    pub notification_scope: Option<String>,
+    #[serde(default)]
+    pub project_id: Option<i64>,
+    #[serde(default)]
+    pub organization_id: Option<i64>,
+    #[serde(default)]
+    pub title: Option<String>,
+    pub body: String,
+    #[serde(default)]
+    pub notification_data: Option<NotificationData>,
+    #[serde(rename = "createdAt")]
+    pub created_at: String,
+    #[serde(default)]
+    pub notification_recipients: Vec<NotificationRecipient>,
+}
+
+impl Notification {
+    /// `notification_recipients[0].seen` is the read flag. Anything other than "1"
+    /// (including absent recipients) means "unread".
+    pub fn is_unread(&self) -> bool {
+        self.notification_recipients
+            .first()
+            .map(|r| r.seen.as_deref() != Some("1"))
+            .unwrap_or(true)
+    }
+}
+
 /// YourGPT API tolerantly returns numbers as either strings or numbers. Coerce to f64.
 fn de_string_or_number<'de, D>(d: D) -> Result<f64, D::Error>
 where

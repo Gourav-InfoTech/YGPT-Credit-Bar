@@ -2,14 +2,14 @@ const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
 const BUCKETS = [
-  { key: "credits", title: "Credits", type: "bar" },
-  { key: "voice_credits", title: "Voice Credits", type: "bar" },
-  { key: "voice_lite_credits", title: "Voice Lite Credits", type: "bar" },
-  { key: "campaign_credits", title: "Campaign Credits", type: "bar" },
-  { key: "chatbot", title: "Chatbots", type: "count" },
-  { key: "members", title: "Team Members", type: "count" },
-  { key: "document", title: "Documents", type: "count" },
-  { key: "webpages", title: "Webpages", type: "count" },
+  { key: "credits", title: "Credits" },
+  { key: "voice_credits", title: "Voice Credits" },
+  { key: "voice_lite_credits", title: "Voice Lite Credits" },
+  { key: "campaign_credits", title: "Campaign Credits" },
+  { key: "chatbot", title: "Chatbots" },
+  { key: "members", title: "Team Members" },
+  { key: "document", title: "Documents" },
+  { key: "webpages", title: "Webpages" },
 ];
 
 function severityClass(pct) {
@@ -18,11 +18,31 @@ function severityClass(pct) {
   return "bucket--severity-ok";
 }
 
+function heroLabel(pct) {
+  if (pct >= 100) return "At limit";
+  if (pct >= 90) return "Near limit";
+  if (pct >= 70) return "Approaching limit";
+  return "Highest usage";
+}
+
+function bucketPct(data) {
+  const limit = Number(data?.limit ?? 0);
+  if (limit <= 0) return 0;
+  const usage = Number(data?.usage ?? 0);
+  return Math.min(100, (usage / limit) * 100);
+}
+
 function formatNum(n) {
   if (n == null) return "—";
   const num = Number(n);
   if (Number.isNaN(num)) return String(n);
-  return num.toLocaleString();
+  const abs = Math.abs(num);
+  // Trim to at most one decimal place, drop a trailing ".0" for cleaner output.
+  const trim = (v) => v.toFixed(1).replace(/\.0$/, "");
+  if (abs >= 1e9) return trim(num / 1e9) + "B";
+  if (abs >= 1e6) return trim(num / 1e6) + "M";
+  if (abs >= 1e3) return trim(num / 1e3) + "K";
+  return String(Math.round(num));
 }
 
 /// "dd MMM yyyy, HH:mm" — matches the dashboard's formatDateTime output.
@@ -50,33 +70,45 @@ function formatResetIn(periodEnd) {
   return `Resets in ${mins}m`;
 }
 
-function renderBucket(bucket, data, periodEnd) {
+function renderHeroBucket(def, data) {
   const usage = Number(data.usage ?? 0);
   const limit = Number(data.limit ?? 0);
-  const pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
+  const pct = bucketPct(data);
   const sev = severityClass(pct);
 
-  if (bucket.type === "count") {
-    return `
-      <div class="bucket bucket--count">
-        <span class="bucket__title">${bucket.title}</span>
-        <span class="bucket__meta">${formatNum(usage)} / ${formatNum(limit)}</span>
-      </div>
-    `;
-  }
+        // <span class="hero-bucket__pill">${severityLabel(pct)}</span>
 
   return `
-    <div class="bucket ${sev}">
-      <div class="bucket__head">
-        <span class="bucket__title">${bucket.title}</span>
-        <span class="bucket__pct">${pct.toFixed(0)}%</span>
+    <div class="hero-bucket ${sev}">
+      <div class="hero-bucket__head">
+        <span class="hero-bucket__label">${heroLabel(pct)}</span>
       </div>
-      <div class="bucket__bar"><div class="bucket__fill" style="width:${pct}%"></div></div>
-      <div class="bucket__detail">
-        <span>${formatNum(usage)} / ${formatNum(limit)}</span>
-        <span>${formatResetIn(periodEnd)}</span>
+      <div class="hero-bucket__main">
+        <span class="hero-bucket__pct">${pct.toFixed(0)}%</span>
+        <span class="hero-bucket__title">${def.title}</span>
+      </div>
+      <div class="hero-bucket__bar"><div class="hero-bucket__fill" style="width:${pct}%"></div></div>
+      <div class="hero-bucket__detail">
+        <span>${formatNum(usage)} used</span>
+        <span>of ${formatNum(limit)}</span>
       </div>
     </div>
+  `;
+}
+
+function renderQuotaRow(def, data) {
+  const usage = Number(data.usage ?? 0);
+  const limit = Number(data.limit ?? 0);
+  const pct = bucketPct(data);
+  const sev = severityClass(pct);
+  return `
+    <li class="quota-row ${sev}">
+      <div class="quota-row__top">
+        <span class="quota-row__title">${def.title}</span>
+        <span class="quota-row__meta">${formatNum(usage)} / ${formatNum(limit)}</span>
+      </div>
+      <div class="quota-row__bar"><div class="quota-row__fill" style="width:${pct}%"></div></div>
+    </li>
   `;
 }
 
@@ -145,6 +177,15 @@ async function render() {
       const heroTitle = empty.querySelector(".empty__title");
       const heroDesc = empty.querySelector(".empty__desc");
       const heroBtn = empty.querySelector("#empty-connect");
+      const features = document.getElementById("empty-features");
+      const tokenHelp = document.getElementById("empty-token-help");
+
+      // Feature list + token-help link are pure onboarding affordances —
+      // only show them in the initial "no token yet" welcome state.
+      const isWelcome = !state?.has_token;
+      features.classList.toggle("hidden", !isWelcome);
+      tokenHelp.classList.toggle("hidden", !isWelcome);
+
       if (state?.has_token && state?.has_org && state?.last_error) {
         heroTitle.textContent = "Couldn't reach YourGPT";
         heroDesc.innerHTML = `<code style="font-family:ui-monospace,monospace;font-size:11px;color:var(--danger);">${escapeHtml(
@@ -165,7 +206,7 @@ async function render() {
       } else {
         heroTitle.textContent = "Welcome to YGPTCreditBar";
         heroDesc.textContent =
-          "Paste your YourGPT API token to start monitoring credits, voice usage, and team caps right from the menu bar.";
+          "Live YourGPT usage right in your menu bar. See credits, voice, and team caps at a glance.";
         heroBtn.textContent = "Connect account";
         heroBtn.classList.remove("hidden");
       }
@@ -181,13 +222,28 @@ async function render() {
     document.getElementById("plan-name").textContent = planLabel(snap);
     updateFreshness();
 
-    const html = BUCKETS.map((b) => {
-      const bucket = snap.usage?.[b.key];
-      if (!bucket) return "";
-      return renderBucket(b, bucket, snap.current_period_end);
-    }).join("");
+    // Pick the worst-pct bucket as the hero, render the rest in a compact list.
+    const present = BUCKETS.filter((b) => snap.usage?.[b.key]);
+    let worst = null;
+    let worstP = -1;
+    for (const b of present) {
+      const p = bucketPct(snap.usage[b.key]);
+      if (p > worstP) {
+        worstP = p;
+        worst = b;
+      }
+    }
 
-    bucketsRoot.innerHTML = html;
+    const heroHtml = worst ? renderHeroBucket(worst, snap.usage[worst.key]) : "";
+    const restHtml = present
+      .filter((b) => b !== worst)
+      .map((b) => renderQuotaRow(b, snap.usage[b.key]))
+      .join("");
+
+    bucketsRoot.innerHTML = `
+      ${heroHtml}
+      ${restHtml ? `<h3 class="other-quotas-title">Other quotas</h3><ul class="other-quotas">${restHtml}</ul>` : ""}
+    `;
 
     document.getElementById("cost-plan").textContent = snap.plan_name || "—";
     document.getElementById("cost-status").textContent = statusLabel(snap.subscription_status);
@@ -208,6 +264,9 @@ let currentOrgId = null;
 function bindActions() {
   document.getElementById("empty-connect").addEventListener("click", () => {
     invoke("open_settings_window");
+  });
+  document.getElementById("empty-token-help").addEventListener("click", () => {
+    invoke("open_external", { url: "https://chatbot.yourgpt.ai/settings/api-tokens" });
   });
   document.getElementById("action-open-dashboard").addEventListener("click", () => {
     invoke("open_external", { url: "https://chatbot.yourgpt.ai/dashboard" });
@@ -236,11 +295,11 @@ function bindActions() {
     await toggleOrgMenu();
   });
 
-  // Close the dropdown when clicking elsewhere
+  // Close dropdowns when clicking elsewhere.
   document.addEventListener("click", (e) => {
-    const menu = document.getElementById("org-menu");
-    if (!menu.classList.contains("hidden")) {
-      if (!menu.contains(e.target) && !switcher.contains(e.target)) {
+    const orgMenu = document.getElementById("org-menu");
+    if (!orgMenu.classList.contains("hidden")) {
+      if (!orgMenu.contains(e.target) && !switcher.contains(e.target)) {
         closeOrgMenu();
       }
     }
@@ -261,6 +320,13 @@ function bindActions() {
     } else if (e.key === "q") {
       e.preventDefault();
       invoke("quit_app");
+    } else if (e.shiftKey && (e.key === "N" || e.key === "n")) {
+      // Debug: fire a sample native banner to verify the macOS notification pipeline.
+      e.preventDefault();
+      console.log("[test_notification] firing…");
+      invoke("test_notification")
+        .then(() => console.log("[test_notification] ok"))
+        .catch((err) => console.error("[test_notification] failed:", err));
     }
   });
 }

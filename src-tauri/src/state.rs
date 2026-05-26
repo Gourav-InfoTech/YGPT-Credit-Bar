@@ -1,6 +1,7 @@
 use crate::keychain;
 use crate::models::Snapshot;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -43,6 +44,10 @@ pub struct AppState {
     pub settings: RwLock<UserSettings>,
     pub last_notified_pct: RwLock<f64>, // tracks the last threshold we notified for, to avoid duplicate alerts
     pub last_error: RwLock<Option<String>>,
+    /// IDs of YourGPT-server billing notifications we've already fired a native banner for
+    /// this session. In-memory only — a cold start may re-announce truly-unread items, which
+    /// is desired (user gets a fresh ping for anything they haven't acknowledged yet).
+    pub announced_notification_ids: RwLock<HashSet<i64>>,
 }
 
 impl AppState {
@@ -52,6 +57,7 @@ impl AppState {
             settings: RwLock::new(UserSettings::load()),
             last_notified_pct: RwLock::new(0.0),
             last_error: RwLock::new(None),
+            announced_notification_ids: RwLock::new(HashSet::new()),
         }
     }
 

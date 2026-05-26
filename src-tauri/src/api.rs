@@ -1,4 +1,4 @@
-use crate::models::{Org, Usage};
+use crate::models::{Notification, Org, Usage};
 use anyhow::{anyhow, Context, Result};
 use reqwest::Client;
 use serde::Deserialize;
@@ -214,6 +214,45 @@ impl ApiClient {
             usage,
         })
     }
+
+    /// POST /chatbot/v1/getMyNotification
+    ///
+    /// Returns the full notification feed (no pagination). The chatbot subtree uses the same
+    /// `api.yourgpt.ai` host as the rest of the API and the same JWT auth, so the existing
+    /// `post()` helper Just Works.
+    pub async fn get_notifications(&self, token: &str) -> Result<Vec<Notification>> {
+        let data = self
+            .post(token, "/chatbot/v1/getMyNotification", json!({}))
+            .await?;
+
+        // The envelope's `data` may be the array directly, or wrapped in `{ notifications: [...] }`
+        // or `{ data: [...] }`. Match the same defensive shape we use for orgs.
+        let arr = match data {
+            Value::Array(a) => a,
+            Value::Object(ref m) => {
+                if let Some(Value::Array(a)) = m.get("notifications") {
+                    a.clone()
+                } else if let Some(Value::Array(a)) = m.get("data") {
+                    a.clone()
+                } else {
+                    return Err(anyhow!("unexpected getMyNotification response shape"));
+                }
+            }
+            Value::Null => Vec::new(),
+            _ => return Err(anyhow!("getMyNotification returned non-array data")),
+        };
+
+        // Deserialize per-item so a single malformed row doesn't tank the whole feed.
+        let mut out = Vec::with_capacity(arr.len());
+        for item in arr {
+            match serde_json::from_value::<Notification>(item.clone()) {
+                Ok(n) => out.push(n),
+                Err(e) => log::warn!("skipping malformed notification: {e}"),
+            }
+        }
+        Ok(out)
+    }
+
 }
 
 /// Maps a YourGPT plan_key (e.g. "chatbot_professional_monthly") to a display title.

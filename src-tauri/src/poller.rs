@@ -36,7 +36,7 @@ pub async fn fetch_once(app: &AppHandle, api: &ApiClient) {
 
     let (Some(token), Some(org_id)) = (token, org_id) else {
         // Nothing to fetch yet — leave snapshot as-is and tray as Idle.
-        update_tray(app, Severity::Idle, None);
+        update_tray(app, Severity::Idle, String::new());
         return;
     };
 
@@ -73,10 +73,12 @@ pub async fn fetch_once(app: &AppHandle, api: &ApiClient) {
             *state.last_error.write().unwrap() = None;
 
             // Title text on the tray: show worst pct when above the warn threshold.
+            // Empty string (not None) — tray-icon's macOS impl ignores None updates,
+            // so we always pass Some(...) and use "" to clear.
             let title = if worst_pct >= 70.0 {
-                Some(format!("{}%", worst_pct.round() as i64))
+                format!("{}%", worst_pct.round() as i64)
             } else {
-                None
+                String::new()
             };
             update_tray(app, severity, title);
             let _ = app.emit("snapshot-updated", ());
@@ -90,11 +92,13 @@ pub async fn fetch_once(app: &AppHandle, api: &ApiClient) {
     }
 }
 
-fn update_tray(app: &AppHandle, severity: Severity, title: Option<String>) {
+fn update_tray(app: &AppHandle, severity: Severity, title: String) {
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_icon(Some(tray::icon_for(severity)));
         let _ = tray.set_icon_as_template(false);
-        let _ = tray.set_title(title.as_deref());
+        // Always pass Some(_): tray-icon on macOS treats None as no-op, so the
+        // previous "73%" sticks even after we reset; an empty string clears it.
+        let _ = tray.set_title(Some(title.as_str()));
     }
 }
 

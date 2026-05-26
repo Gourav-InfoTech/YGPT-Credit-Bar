@@ -154,10 +154,11 @@ pub fn clear_account(
     *state.last_notified_pct.write().unwrap() = 0.0;
 
     // Reset the tray icon to the idle (gray) state and clear the percentage title.
+    // Pass Some("") not None — tray-icon's macOS impl skips None as a no-op.
     if let Some(tray_icon) = app.tray_by_id("main") {
         let _ = tray_icon.set_icon(Some(tray::icon_for(Severity::Idle)));
         let _ = tray_icon.set_icon_as_template(false);
-        let _ = tray_icon.set_title(None::<&str>);
+        let _ = tray_icon.set_title(Some(""));
     }
 
     // Tell the popover to re-render with the empty state.

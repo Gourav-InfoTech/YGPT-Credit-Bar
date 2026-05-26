@@ -320,13 +320,6 @@ function bindActions() {
     } else if (e.key === "q") {
       e.preventDefault();
       invoke("quit_app");
-    } else if (e.shiftKey && (e.key === "N" || e.key === "n")) {
-      // Debug: fire a sample native banner to verify the macOS notification pipeline.
-      e.preventDefault();
-      console.log("[test_notification] firing…");
-      invoke("test_notification")
-        .then(() => console.log("[test_notification] ok"))
-        .catch((err) => console.error("[test_notification] failed:", err));
     }
   });
 }

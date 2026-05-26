@@ -35,7 +35,6 @@ pub fn run() {
             commands::refresh_now,
             commands::open_external,
             commands::open_settings_window,
-            commands::test_notification,
             commands::quit_app,
         ])
         .setup(|app| {

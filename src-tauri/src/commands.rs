@@ -200,50 +200,6 @@ pub fn open_settings_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Fires a sample native macOS banner. Explicitly requests permission first so the macOS
-/// "Allow YGPTCreditBar to send notifications?" prompt actually surfaces if it hasn't yet.
-#[tauri::command]
-pub async fn test_notification(app: AppHandle) -> Result<(), String> {
-    use tauri_plugin_notification::{NotificationExt, PermissionState};
-
-    // 1. Check current permission state
-    let state = app
-        .notification()
-        .permission_state()
-        .map_err(|e| format!("permission_state: {e}"))?;
-    log::info!("notification permission state: {:?}", state);
-
-    // 2. Request permission if not yet granted (this is what surfaces the macOS prompt)
-    let state = if state != PermissionState::Granted {
-        log::info!("requesting notification permission…");
-        let s = app
-            .notification()
-            .request_permission()
-            .map_err(|e| format!("request_permission: {e}"))?;
-        log::info!("permission after request: {:?}", s);
-        s
-    } else {
-        state
-    };
-
-    if state != PermissionState::Granted {
-        return Err(format!(
-            "notification permission not granted (state={state:?}). Check System Settings → Notifications → YGPTCreditBar."
-        ));
-    }
-
-    // 3. Fire the banner
-    log::info!("firing test banner…");
-    app.notification()
-        .builder()
-        .title("YGPTCreditBar")
-        .body("Test banner — notifications are working.")
-        .show()
-        .map_err(|e| format!("show: {e}"))?;
-    log::info!("test banner fired");
-    Ok(())
-}
-
 #[tauri::command]
 pub fn quit_app(app: AppHandle) {
     app.exit(0);

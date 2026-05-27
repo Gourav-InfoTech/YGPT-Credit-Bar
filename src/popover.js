@@ -57,26 +57,11 @@ function formatNextPayment(periodEnd) {
   )}:${pad(d.getMinutes())}`;
 }
 
-function formatResetIn(periodEnd) {
-  if (!periodEnd) return "";
-  const now = Date.now() / 1000;
-  const diff = periodEnd - now;
-  if (diff <= 0) return "Renewing…";
-  const days = Math.floor(diff / 86400);
-  const hours = Math.floor((diff % 86400) / 3600);
-  const mins = Math.floor((diff % 3600) / 60);
-  if (days > 0) return `Resets in ${days}d ${hours}h`;
-  if (hours > 0) return `Resets in ${hours}h ${mins}m`;
-  return `Resets in ${mins}m`;
-}
-
 function renderHeroBucket(def, data) {
   const usage = Number(data.usage ?? 0);
   const limit = Number(data.limit ?? 0);
   const pct = bucketPct(data);
   const sev = severityClass(pct);
-
-        // <span class="hero-bucket__pill">${severityLabel(pct)}</span>
 
   return `
     <div class="hero-bucket ${sev}">
@@ -115,22 +100,32 @@ function renderQuotaRow(def, data) {
 function planLabel(plan) {
   if (!plan) return "";
   const status = (plan.subscription_status || "").toLowerCase();
-  if (status === "trialing" || status === "free_trial" || status === "trial") return `${plan.plan_name || "Trial"} (Trial)`;
+  const name = plan.plan_name || "Trial";
+  if (status === "trialing" || status === "free_trial" || status === "trial") {
+    // Skip the "(Trial)" suffix when the plan name itself already says "Trial"
+    // (otherwise we render "Trial (Trial)").
+    return /trial/i.test(name) ? name : `${name} (Trial)`;
+  }
   return plan.plan_name || "Active plan";
 }
 
 function statusLabel(s) {
   if (!s) return "—";
+  // Mirrors yourgpt-chatbot's SubscriptionStatus enum (utils/constants/plans.ts).
+  // The server emits both `cancel` (in-flight cancellation) and `canceled` (final state).
   const map = {
     active: "Active",
     trialing: "Trial",
     free_trial: "Free trial",
     trial: "Trial",
+    cancel: "Canceling",
     canceled: "Canceled",
     past_due: "Past due",
     expired: "Expired",
     paused: "Paused",
     incomplete: "Incomplete",
+    incomplete_expired: "Expired",
+    complete: "Completed",
   };
   return map[s.toLowerCase()] || s;
 }
@@ -248,11 +243,27 @@ async function render() {
     document.getElementById("cost-plan").textContent = snap.plan_name || "—";
     document.getElementById("cost-status").textContent = statusLabel(snap.subscription_status);
     // Mirror the dashboard's "Plan expired on" vs "Next payment on" labels.
-    const isCancelled = (snap.subscription_status || "").toLowerCase() === "canceled";
-    document.getElementById("cost-renewal-label").textContent = isCancelled
-      ? "Plan expired on"
-      : "Next payment";
-    document.getElementById("cost-renewal").textContent = formatNextPayment(snap.current_period_end);
+    const s = (snap.subscription_status || "").toLowerCase();
+    const isTrialing = s === "trialing" || s === "trial" || s === "free_trial";
+    // "cancel" = in-flight cancellation, "canceled" = final state, both show plan-expired.
+    const isCancelled = s === "canceled" || s === "cancel" || s === "expired" || s === "incomplete_expired";
+
+    let renewalLabel;
+    let renewalDate;
+    if (isTrialing && snap.trial_expiry) {
+      // Trial accounts get a "Trial ends" label sourced from subscriptionData.trail_plan.expiry_date.
+      renewalLabel = "Trial ends";
+      renewalDate = snap.trial_expiry;
+    } else if (isCancelled) {
+      renewalLabel = "Plan expired on";
+      renewalDate = snap.current_period_end;
+    } else {
+      renewalLabel = "Next payment";
+      renewalDate = snap.current_period_end;
+    }
+
+    document.getElementById("cost-renewal-label").textContent = renewalLabel;
+    document.getElementById("cost-renewal").textContent = formatNextPayment(renewalDate);
     cost.classList.remove("hidden");
   } catch (err) {
     console.error("render failed", err);
@@ -370,10 +381,8 @@ async function toggleOrgMenu() {
       btn.addEventListener("click", async () => {
         const id = btn.dataset.id;
         const name = btn.dataset.name;
-        console.log("[org-switch] click", { id, name, currentOrgId });
 
         if (String(id) === String(currentOrgId)) {
-          console.log("[org-switch] same org, no-op");
           closeOrgMenu();
           return;
         }
@@ -383,17 +392,15 @@ async function toggleOrgMenu() {
         document.getElementById("plan-name").textContent = "Loading usage…";
 
         try {
-          const result = await invoke("switch_org", {
+          await invoke("switch_org", {
             organizationId: id,
             organizationName: name,
           });
-          console.log("[org-switch] switch_org returned", result);
           // Update local cache so subsequent dropdowns mark the right row
           currentOrgId = id;
           // Render once now; the snapshot-updated event will re-render with real data
           await render();
         } catch (err) {
-          console.error("[org-switch] failed:", err);
           document.getElementById("plan-name").textContent = `Error: ${
             typeof err === "string" ? err : err?.message || "switch failed"
           }`;

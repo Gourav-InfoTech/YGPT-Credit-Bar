@@ -32,6 +32,10 @@ pub struct PlanDetailResult {
     pub subscription_status: Option<String>,
     pub current_period_start: Option<i64>,
     pub current_period_end: Option<i64>,
+    /// Unix seconds of when the trial ends. Only Some when the org is on a trial.
+    /// Sourced from `subscriptionData.trail_plan.expiry_date` (note: backend's literal
+    /// spelling is "trail_plan", not "trial_plan").
+    pub trial_expiry: Option<i64>,
     pub usage: Usage,
 }
 
@@ -206,11 +210,21 @@ impl ApiClient {
                     .and_then(|n| first_i64_obj(n, &["period_end"]))
             });
 
+        // Trial expiry — `subscriptionData.trail_plan.expiry_date` (yes, the server's spelling
+        // is "trail_plan"). Accept either a Unix-seconds number or an ISO 8601 string.
+        let trial_expiry = root
+            .get("subscriptionData")
+            .and_then(|s| s.get("trail_plan"))
+            .filter(|v| !v.is_null())
+            .and_then(|tp| tp.get("expiry_date"))
+            .and_then(parse_unix_seconds);
+
         Ok(PlanDetailResult {
             plan_name,
             subscription_status,
             current_period_start,
             current_period_end,
+            trial_expiry,
             usage,
         })
     }
@@ -300,11 +314,20 @@ fn first_string(obj: &serde_json::Map<String, Value>, keys: &[&str]) -> Option<S
     None
 }
 
-fn first_string_obj(v: &Value, keys: &[&str]) -> Option<String> {
-    let obj = v.as_object()?;
-    for k in keys {
-        if let Some(s) = obj.get(*k).and_then(|v| v.as_str()) {
-            return Some(s.to_string());
+/// Coerces a JSON value to Unix seconds. Accepts either a number (timestamp seconds OR
+/// milliseconds — auto-detected by magnitude) or an ISO-8601 string. Returns None on
+/// anything else.
+fn parse_unix_seconds(v: &Value) -> Option<i64> {
+    if let Some(n) = v.as_i64() {
+        // Treat anything that looks like a JS-style millisecond timestamp as ms.
+        return Some(if n > 1_000_000_000_000 { n / 1000 } else { n });
+    }
+    if let Some(s) = v.as_str() {
+        if let Ok(n) = s.parse::<i64>() {
+            return Some(if n > 1_000_000_000_000 { n / 1000 } else { n });
+        }
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+            return Some(dt.timestamp());
         }
     }
     None

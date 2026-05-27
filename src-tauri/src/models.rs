@@ -86,6 +86,8 @@ pub struct Snapshot {
     pub subscription_status: Option<String>,
     pub current_period_start: Option<i64>,
     pub current_period_end: Option<i64>,
+    /// Unix seconds; only Some when the org is on a trial.
+    pub trial_expiry: Option<i64>,
     pub usage: Usage,
     pub fetched_at_ms: i64,
     pub severity: Severity,

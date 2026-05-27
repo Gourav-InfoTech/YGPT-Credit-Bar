@@ -1,6 +1,6 @@
 [package]
 name = "ygpt-credit-bar"
-version = "0.1.3"
+version = "0.1.4"
 description = "Menu bar app for YourGPT credit usage"
 authors = ["Rohan / Delta4 Infotech"]
 edition = "2021"

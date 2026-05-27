@@ -24,8 +24,14 @@ impl UserSettings {
         keychain::load_settings_json()
             .and_then(|json| serde_json::from_str::<UserSettings>(&json).ok())
             .map(|mut s| {
+                // Guard against corrupt or stale Keychain values driving extreme poll
+                // cadences. `save_settings` already clamps before write, but a build that
+                // wrote out-of-range values previously (or hand-edited Keychain entries)
+                // would still be loaded as-is.
                 if s.interval_secs == 0 {
                     s.interval_secs = 30;
+                } else {
+                    s.interval_secs = s.interval_secs.clamp(15, 300);
                 }
                 s
             })
@@ -42,8 +48,11 @@ impl UserSettings {
 pub struct AppState {
     pub snapshot: RwLock<Option<Snapshot>>,
     pub settings: RwLock<UserSettings>,
-    pub last_notified_pct: RwLock<f64>, // tracks the last threshold we notified for, to avoid duplicate alerts
     pub last_error: RwLock<Option<String>>,
+    /// Per-(org, bucket, threshold) dedup so we fire each "Org X — Chatbots reached 100%"
+    /// banner at most once per session, even though the poller re-checks every cycle.
+    /// Tuple = (organization_id, bucket_label, threshold_pct).
+    pub fired_thresholds: RwLock<HashSet<(String, String, u8)>>,
     /// IDs of YourGPT-server billing notifications we've already fired a native banner for
     /// this session. In-memory only — a cold start may re-announce truly-unread items, which
     /// is desired (user gets a fresh ping for anything they haven't acknowledged yet).
@@ -55,8 +64,8 @@ impl AppState {
         Self {
             snapshot: RwLock::new(None),
             settings: RwLock::new(UserSettings::load()),
-            last_notified_pct: RwLock::new(0.0),
             last_error: RwLock::new(None),
+            fired_thresholds: RwLock::new(HashSet::new()),
             announced_notification_ids: RwLock::new(HashSet::new()),
         }
     }

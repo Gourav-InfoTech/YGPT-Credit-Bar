@@ -92,7 +92,6 @@ pub async fn switch_org(
     // Clear stale data so the popover shows a clean loading state until the new fetch lands.
     *state.snapshot.write().unwrap() = None;
     *state.last_error.write().unwrap() = None;
-    *state.last_notified_pct.write().unwrap() = 0.0;
 
     let api_clone = api.inner().clone();
     let app_clone = app.clone();
@@ -128,8 +127,6 @@ pub async fn save_settings(
     };
     new_settings.save().map_err(|e| e.to_string())?;
     *state.settings.write().unwrap() = new_settings;
-    // Reset throttle so a fresh setup doesn't reuse stale notification suppression.
-    *state.last_notified_pct.write().unwrap() = 0.0;
 
     // Trigger an immediate fetch so the popover refreshes right away.
     let api_clone = api.inner().clone();
@@ -151,7 +148,7 @@ pub fn clear_account(
     *state.settings.write().unwrap() = UserSettings::defaults();
     *state.snapshot.write().unwrap() = None;
     *state.last_error.write().unwrap() = None;
-    *state.last_notified_pct.write().unwrap() = 0.0;
+    state.fired_thresholds.write().unwrap().clear();
     state.announced_notification_ids.write().unwrap().clear();
 
     // Reset the tray icon to the idle (gray) state and clear the percentage title.
@@ -182,9 +179,14 @@ pub fn open_external(app: AppHandle, url: String) -> Result<(), String> {
 #[tauri::command]
 pub fn open_settings_window(app: AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window("settings") {
+        // Only center on first-show — re-centering an already-visible window yanks it
+        // away from where the user dragged it, which is annoying.
+        let was_visible = win.is_visible().unwrap_or(false);
         let _ = win.show();
         let _ = win.set_focus();
-        let _ = win.center();
+        if !was_visible {
+            let _ = win.center();
+        }
         return Ok(());
     }
     // Fall back: create it from scratch (shouldn't be needed since it's declared in tauri.conf.json).

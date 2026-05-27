@@ -310,30 +310,6 @@ button {
   text-transform: uppercase;
 }
 
-.hero-bucket__pill {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.hero-bucket.bucket--severity-ok .hero-bucket__pill {
-  background: rgba(52, 199, 89, 0.15);
-  color: var(--success);
-}
-
-.hero-bucket.bucket--severity-warn .hero-bucket__pill {
-  background: rgba(255, 204, 0, 0.15);
-  color: var(--warning);
-}
-
-.hero-bucket.bucket--severity-alert .hero-bucket__pill {
-  background: rgba(255, 69, 58, 0.15);
-  color: var(--danger);
-}
-
 .hero-bucket__main {
   display: flex;
   align-items: baseline;

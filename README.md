@@ -1,6 +1,13 @@
-# YGPTCreditBar
+<p align="center">
+  <img src="src-tauri/icons/app-icon.png" width="160" alt="YGPTCreditBar app icon" />
+</p>
 
-A macOS menu-bar app that surfaces your YourGPT credit and quota usage at a glance. Inspired by CodexBar.
+<h1 align="center">YGPTCreditBar</h1>
+
+<p align="center">
+  A macOS menu-bar app that surfaces your YourGPT credit and quota usage at a glance.<br/>
+  Inspired by CodexBar.
+</p>
 
 The bar-chart icon in your menu bar turns yellow as you approach plan limits, then red when you're about to exhaust them. Click it for the full breakdown by bucket. Native macOS banners fire automatically when a limit is crossed, so you can keep working in another app and still hear about it.
 
